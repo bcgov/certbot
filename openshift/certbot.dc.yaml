@@ -210,13 +210,13 @@ parameters:
   - name: IMAGE_REGISTRY
     description: Image Registry
     required: true
-    value: docker.io
+    value: ghcr.io
     # Internal OpenShift container registry: image-registry.openshift-image-registry.svc:5000
 
   - name: IMAGE_NAMESPACE
     description: Image Namespace
     required: true
-    value: bcgovimages
+    value: bcgov
 
   - name: IMAGE_NAME
     description: Image Name

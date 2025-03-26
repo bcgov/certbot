@@ -1,9 +1,5 @@
 # Certbot [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Lifecycle:Stable](https://img.shields.io/badge/Lifecycle-Stable-97ca00)](https://github.com/bcgov/repomountie/blob/master/doc/lifecycle-badges.md)
 
-[![version](https://img.shields.io/docker/v/bcgovimages/certbot.svg?sort=semver)](https://hub.docker.com/r/bcgovimages/certbot)
-[![pulls](https://img.shields.io/docker/pulls/bcgovimages/certbot.svg)](https://hub.docker.com/r/bcgovimages/certbot)
-[![size](https://img.shields.io/docker/image-size/bcgovimages/certbot.svg)](https://hub.docker.com/r/bcgovimages/certbot)
-
 Automatically update TLS Certificates on OpenShift Routes
 
 _Update (August 2023) - Entrust Certificate Services has discontinued ACMEv1 protocol. Current users of BCDevOps Certbot will be unable to renew their certificates at this time if they are using OCIO Identity Management Services' Entrust Certificate Services._
@@ -14,17 +10,19 @@ To learn more about the **Common Services** available visit the [Common Services
 
 ## Table of Contents
 
-- [Summary](#summary)
-- [Environment Variables](#environment-variables)
-- [Quick Start](#quick-start)
-  - [Manual Run](#manual-run)
-  - [Cleanup](#cleanup)
-- [Entrust Usage](#entrust-usage)
-- [Tips](#tips)
-- [Appendix](#appendix)
-  - [References](#references)
-  - [Errata](#errata)
-- [License](#license)
+- [Certbot  ](#certbot--)
+  - [Table of Contents](#table-of-contents)
+  - [Summary](#summary)
+  - [Environment Variables](#environment-variables)
+  - [Quick Start](#quick-start)
+    - [Manual Run](#manual-run)
+    - [Cleanup](#cleanup)
+  - [Entrust Usage](#entrust-usage)
+  - [Tips](#tips)
+  - [Appendix](#appendix)
+    - [References](#references)
+    - [Errata](#errata)
+  - [License](#license)
 
 ## Summary
 
@@ -89,8 +87,8 @@ The following provides you a quick way to get Certbot set up and running as an O
     | `CERTBOT_CERT_PER_HOST` | `false` | Manage an individual certificate per unique managed host (domain name), if true, otherwise, manage a single certificate for all managed hosts (domain names) |
     | `CRON_SCHEDULE` | `0 0 * * 1,4` | [Cronjob](https://crontab.guru) Schedule |
     | `CRON_SUSPEND` | `false` | Suspend cronjob |
-    | `IMAGE_REGISTRY` | `docker.io` | Image Registry |
-    | `IMAGE_NAMESPACE` | `bcgovimages` | Image Namespace |
+    | `IMAGE_REGISTRY` | `ghcr.io` | Image Registry |
+    | `IMAGE_NAMESPACE` | `bcgov` | Image Namespace |
     | `IMAGE_NAME` | `certbot` | Image Name |
     | `IMAGE_TAG` | `latest` | Image Tag. We recommend pinning this to a specific release veresion for stability |
 
