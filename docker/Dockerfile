@@ -1,6 +1,6 @@
 # cat Dockerfile | oc new-build -D - --name=certbot
 FROM docker.io/python:3.10-alpine
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 ARG APP_ROOT=/usr/local/bin
 WORKDIR ${APP_ROOT}
 
@@ -9,9 +9,12 @@ RUN apk add --no-cache bash gcompat py3-setuptools \
  && rm -rf /var/cache/apk/*
 
 # Install Certbot
+# Downgrade to Acme 1.32.0 to support Certbot 1.26.0
+# ToDo: Upgrade to latest
 RUN apk add --no-cache --virtual certbot-build gcc libc-dev libffi-dev \
  && pip install --no-cache-dir --upgrade pip wheel \
  && pip install --no-cache-dir 'certbot==1.26.0' \
+ && pip install --no-cache-dir 'acme==1.32.0' \
  && certbot --version \
  && certbot --help paths \
  && apk del certbot-build \
