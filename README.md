@@ -1,9 +1,5 @@
 # Certbot [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Lifecycle:Dormant](https://img.shields.io/badge/Lifecycle-Dormant-ff7f2a)](https://github.com/bcgov/repomountie/blob/master/doc/lifecycle-badges.md)
 
-[![version](https://img.shields.io/docker/v/bcgovimages/certbot.svg?sort=semver)](https://hub.docker.com/r/bcgovimages/certbot)
-[![pulls](https://img.shields.io/docker/pulls/bcgovimages/certbot.svg)](https://hub.docker.com/r/bcgovimages/certbot)
-[![size](https://img.shields.io/docker/image-size/bcgovimages/certbot.svg)](https://hub.docker.com/r/bcgovimages/certbot)
-
 Automatically update TLS Certificates on OpenShift Routes
 
 _Update (August 2023) - Entrust Certificate Services has discontinued ACMEv1 protocol. Current users of BCDevOps Certbot will be unable to renew their certificates at this time if they are using OCIO Identity Management Services' Entrust Certificate Services._

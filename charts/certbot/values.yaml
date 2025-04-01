@@ -1,11 +1,11 @@
 image:
-  repository: bcgovimages/certbot
+  repository: bcgov/certbot
   tag: latest
   pullPolicy: Always
 
 artifactoryProxy:
   enabled: false
-  artifactoryPrefix: artifacts.developer.gov.bc.ca/docker-remote
+  artifactoryPrefix: artifacts.developer.gov.bc.ca/github-docker-remote
   # You need to set this if you are using artifactoryProxy.enabled: true
   artifactoryServiceAccount: ~
 
@@ -33,7 +33,7 @@ certbot:
   # Allow domain validation to pass if a subset of them are valid
   subset: true
 
-  # Manage an individual certificate per unique managed host (domain name), if true, 
+  # Manage an individual certificate per unique managed host (domain name), if true,
   # otherwise, manage a single certificate for all managed hosts (domain names)
   certPerHost: false
 
