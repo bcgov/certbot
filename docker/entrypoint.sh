@@ -160,6 +160,14 @@ EOF
 # Get a mapping of all managed routes and their hosts
 routeMap=$(oc get route -l certbot-managed=true -o=jsonpath='{range .items[*]}{.metadata.name}={.spec.host}{"\n"}{end}')
 
+
+# Get a mapping of tls secrets and their hosts from all managed ingresses.
+# Example:
+#   oc -n 4a9599-dev get ingress -l certbot-managed=true -o=jsonpath='{range .items[*]}{range .spec.tls[*]}{.secretName}={.hosts}{"\n"}{end}'
+# Result:
+#   mediator-credo-tls=["mediator-dev.digitaltrust.gov.bc.ca"]
+
+
 # Declare and populate a hash table to use as a dictionary for mapping the routes to their hosts.
 # - The host name will also be used as the certificate name in the case individual certificates are being requested.
 declare -A managedRoutes
@@ -233,7 +241,7 @@ rm -f ${CERTBOT_WORK_DIR}/deployed
 
 # Get certificate(s), either combined or individual
 if [ "${CERTBOT_CERT_PER_HOST}" == "true" ]; then
-  echo "Manage individual certificates for each unique host."  
+  echo "Manage individual certificates for each unique host."
   for certbot_host in $(</tmp/certbot-hosts.txt); do
     getCertificate "${certbot_host}" "${certbot_host}"
   done
