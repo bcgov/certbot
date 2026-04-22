@@ -1,5 +1,9 @@
 name: Pull Request Opened
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   APP_NAME: certbot
 
