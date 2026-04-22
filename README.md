@@ -1,10 +1,8 @@
 # Certbot [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Lifecycle:Dormant](https://img.shields.io/badge/Lifecycle-Dormant-ff7f2a)](https://github.com/bcgov/repomountie/blob/master/doc/lifecycle-badges.md)
 
-Automatically update TLS Certificates on OpenShift Routes
+Automatically update TLS certificates on OpenShift Routes and Ingresses
 
-_Update (August 2023) - Entrust Certificate Services has discontinued ACMEv1 protocol. Current users of BCDevOps Certbot will be unable to renew their certificates at this time if they are using OCIO Identity Management Services' Entrust Certificate Services._
-
-_Update (November 2023) - At this time, the underlying EFF Certbot project and Entrust Certificate Services both support the newer ACMEv2 protocol. However, BCDevOps Certbot currently only supports the older, deprecated, ACMEv1 protocol, and OCIO IMS has not enabled ACMEv2 protocol support at this time. Please consider contacting OCIO Identity Management Services to express your need for ACMEv2 and Certbot support._
+The container image now uses a current Python and Certbot runtime with ACME v2-compatible defaults. Support for a specific certificate authority still depends on that provider's ACME implementation and any approval process required by your organization.
 
 To learn more about the **Common Services** available visit the [Common Services Showcase](https://bcgov.github.io/common-service-showcase/) page.
 
@@ -24,6 +22,7 @@ SECURITY.md                - Security Policy and Reporting
 ## Documentation
 
 * [Docker Readme](docker/README.md)
+* [Helm Chart Readme](charts/certbot/README.md)
 * [Security Reporting](SECURITY.md)
 
 ## Getting Help or Reporting an Issue

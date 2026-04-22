@@ -66,7 +66,7 @@ You can use the `--set` or `--values` option to change the default configuration
 
 You can find an exhaustive list of the configurable settings in `values.yaml`.
 
-## Helm-managed routes with Certbot
+## Helm-managed routes and ingresses with Certbot
 
 If you are using Helm to deploy your application, you likely create the routes via helm as well. Certbot will inject the `tls` settings in your route after Helm creates it, so you need to ensure that Helm does not overwrite the changes that Certbot made next time it updates your route (unless you change the host and actually need to issue a new certificate).
 The example below uses Helm's `lookup` function to retrieve the certificates and key from the route before recreating the template.
@@ -107,6 +107,8 @@ spec:
     weight: 100
   wildcardPolicy: None
 ```
+
+For Kubernetes `Ingress` resources, Certbot updates the TLS `Secret` referenced by each managed `spec.tls[*].secretName` entry rather than modifying the `Ingress` object itself. If you manage those secrets with Helm, ensure your chart preserves the secret contents or excludes those TLS secrets from regular reconciliation so Helm does not overwrite certificates issued by Certbot.
 
 ## Artifactory Usage
 
