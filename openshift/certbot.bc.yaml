@@ -41,7 +41,7 @@ objects:
         dockerStrategy:
           from:
             kind: DockerImage
-            name: docker.io/python:3.10-alpine
+            name: docker.io/python:3.12-alpine
         type: Docker
       triggers:
         - type: ConfigChange
