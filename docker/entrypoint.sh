@@ -166,6 +166,7 @@ routeMap=$(oc get route -l certbot-managed=true -o=jsonpath='{range .items[*]}{.
 #   oc -n 4a9599-dev get ingress -l certbot-managed=true -o=jsonpath='{range .items[*]}{range .spec.tls[*]}{.secretName}={.hosts}{"\n"}{end}'
 # Result:
 #   mediator-credo-tls=["mediator-dev.digitaltrust.gov.bc.ca"]
+ingressTlsMap=$(oc get ingress -l certbot-managed=true -o=jsonpath='{range .items[*]}{range .spec.tls[*]}{.secretName}={range .hosts[*]}{.}{" "}{end}{"\n"}{end}{end}')
 
 
 # Declare and populate a hash table to use as a dictionary for mapping the routes to their hosts.
@@ -182,10 +183,37 @@ for item in ${routeMap}; do
   fi
 done
 
+# Declare and populate a hash table for mapping ingress TLS secrets to their hosts.
+# - The TLS secret name will be used as the certificate name for ingress-managed certificates.
+declare -A managedIngressSecrets
+while IFS='=' read -r key value; do
+  if [ -z "${key}" ] || [ -z "${value}" ]; then
+    continue
+  fi
+
+  # Normalize and de-duplicate hosts for a given secret.
+  ingressHosts=$(echo "${value}" | tr ' ' '\n' | sed '/^$/d' | sort -fu | paste -sd ',' -)
+  if [ -z "${ingressHosts}" ]; then
+    continue
+  fi
+
+  if [ -n "${managedIngressSecrets[${key}]}" ]; then
+    mergedHosts=$(printf "%s\n%s\n" "${managedIngressSecrets[${key}]}" "${ingressHosts}" | tr ',' '\n' | sed '/^$/d' | sort -fu | paste -sd ',' -)
+    managedIngressSecrets[${key}]="${mergedHosts}"
+  else
+    managedIngressSecrets[${key}]="${ingressHosts}"
+  fi
+done <<< "${ingressTlsMap}"
+
 # Generate a list of sorted and unique managed domains (hosts), and a list of sorted and unique routes
-echo "${managedRoutes[@]}" | tr " " "\n" | sort -fu > /tmp/certbot-hosts.txt
+allHosts=$(printf "%s\n" "${managedRoutes[@]}" "${managedIngressSecrets[@]}" | tr ',' '\n' | sed '/^$/d' | sort -fu)
+echo "${allHosts}" > /tmp/certbot-hosts.txt
 cat /tmp/certbot-hosts.txt | paste -sd "," - > /tmp/certbot-hosts.csv
 echo "${!managedRoutes[@]}" | tr " " "\n" | sort -fu > /tmp/certbot-routes.txt
+echo "${!managedIngressSecrets[@]}" | tr " " "\n" | sort -fu > /tmp/certbot-ingress-secrets.txt
+
+# Track which certificate should be used for each ingress TLS secret.
+declare -A ingressSecretCertificates
 
 echo 'CERTBOT_DEBUG =' ${CERTBOT_DEBUG}
 # Dump contents of files to help troubleshoot in case of problems
@@ -200,6 +228,11 @@ if [ "${CERTBOT_DEBUG}" == "true" ]; then
     echo "  ${route}: ${managedRoutes[${route}]}"
   done
 
+  echo '*********** resulting mapping of ingress tls secrets to hosts:'
+  for secret in "${!managedIngressSecrets[@]}"; do
+    echo "  ${secret}: ${managedIngressSecrets[${secret}]}"
+  done
+
   echo '*********** contents of /tmp/certbot-hosts.csv:'
   cat /tmp/certbot-hosts.csv
 
@@ -208,6 +241,9 @@ if [ "${CERTBOT_DEBUG}" == "true" ]; then
 
   echo '*********** contents of /tmp/certbot-routes.txt:'
   cat /tmp/certbot-routes.txt
+
+  echo '*********** contents of /tmp/certbot-ingress-secrets.txt:'
+  cat /tmp/certbot-ingress-secrets.txt
 
   echo '*********** contents of /tmp/certbot-route.yaml:'
   cat /tmp/certbot-route.yaml
@@ -245,6 +281,12 @@ if [ "${CERTBOT_CERT_PER_HOST}" == "true" ]; then
   for certbot_host in $(</tmp/certbot-hosts.txt); do
     getCertificate "${certbot_host}" "${certbot_host}"
   done
+
+  # Ingress TLS secrets may contain multiple hosts. Request one certificate per secret.
+  for secret in "${!managedIngressSecrets[@]}"; do
+    getCertificate "${secret}" "${managedIngressSecrets[${secret}]}"
+    ingressSecretCertificates[${secret}]="${secret}"
+  done
 else
   echo "Managing a single certificate covering all managed hosts."
   getCertificate "${CERTBOT_COMBINED_CERT_NAME}" "$(</tmp/certbot-hosts.csv)"
@@ -252,6 +294,10 @@ else
   # Re-Map the managed route dictionary so all routes get patched with the combined certificate.
   for route in "${!managedRoutes[@]}"; do
     managedRoutes[${route}]="${CERTBOT_COMBINED_CERT_NAME}"
+  done
+
+  for secret in "${!managedIngressSecrets[@]}"; do
+    ingressSecretCertificates[${secret}]="${CERTBOT_COMBINED_CERT_NAME}"
   done
 fi
 
@@ -280,11 +326,42 @@ for route in "${!managedRoutes[@]}"; do
   fi
 done
 
+# Patch or create ingress TLS secrets
+for secret in "${!managedIngressSecrets[@]}"; do
+  if [ "${CERTBOT_CERT_PER_HOST}" == "true" ]; then
+    certificateName=${ingressSecretCertificates[${secret}]}
+  else
+    certificateName=${CERTBOT_COMBINED_CERT_NAME}
+  fi
+
+  echo "Updating secret/${secret} with certificate ${certificateName} for ingress TLS ..."
+  TLS_CRT="$(awk '{printf "%s\\n", $0}' ${CERTBOT_CONFIG_DIR}/live/${certificateName}/fullchain.pem)"
+  TLS_KEY="$(awk '{printf "%s\\n", $0}' ${CERTBOT_CONFIG_DIR}/live/${certificateName}/privkey.pem)"
+
+  if [ "${CERTBOT_DRY_RUN}" == "true" ]; then
+    echo "Dry Run - the certificate for secret/${secret} was not patched."
+  elif [ "${TLS_CRT}" == "" ] || [ "${TLS_KEY}" == "" ]; then
+    echo "The certificate for secret/${secret} wasn't created properly so it won't be patched."
+  else
+    if oc get secret "${secret}" > /dev/null 2>&1; then
+      oc patch "secret/${secret}" -p '{"type":"kubernetes.io/tls","stringData":{"tls.crt":"'"${TLS_CRT}"'","tls.key":"'"${TLS_KEY}"'"}}'
+    else
+      echo "secret/${secret} does not exist, creating it as type kubernetes.io/tls ..."
+      oc create secret tls "${secret}" --cert="${CERTBOT_CONFIG_DIR}/live/${certificateName}/fullchain.pem" --key="${CERTBOT_CONFIG_DIR}/live/${certificateName}/privkey.pem"
+    fi
+  fi
+done
+
 if [ "${CERTBOT_DEBUG}" == "true" ]; then
 
   echo '*********** final mapping of routes to hosts (certificate names):'
   for route in "${!managedRoutes[@]}"; do
     echo "  ${route}: ${managedRoutes[${route}]}"
+  done
+
+  echo '*********** final mapping of ingress tls secrets to certificate names:'
+  for secret in "${!ingressSecretCertificates[@]}"; do
+    echo "  ${secret}: ${ingressSecretCertificates[${secret}]}"
   done
 
   echo "*********** list of all files/folder under ${CERTBOT_CONFIG_DIR}:"
