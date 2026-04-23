@@ -126,9 +126,8 @@ template:
             value: {{ .Values.certbot.certPerHost | quote }}
         resources:
           requests:
-            cpu: 50m
-          limits:
-            cpu: 250m
+            cpu: 100m
+            memory: 256Mi
         volumeMounts:
           - mountPath: /etc/letsencrypt
             name: certbot-config

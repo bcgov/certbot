@@ -155,9 +155,8 @@ objects:
                       value: "${CERTBOT_CERT_PER_HOST}"
                   resources:
                     requests:
-                      cpu: 50m
-                    limits:
-                      cpu: 250m
+                      cpu: 100m
+                      memory: 256Mi
                   volumeMounts:
                     - mountPath: /etc/letsencrypt
                       name: certbot-config
