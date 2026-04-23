@@ -118,12 +118,12 @@ objects:
       concurrencyPolicy: Forbid
       failedJobsHistoryLimit: 3
       successfulJobsHistoryLimit: 3
-      startingDeadlineSeconds: 60
+      startingDeadlineSeconds: 600
       jobTemplate:
         metadata:
         spec:
           backoffLimit: 6
-          activeDeadlineSeconds: 300
+          activeDeadlineSeconds: 600
           parallelism: 1
           completions: 1
           template:

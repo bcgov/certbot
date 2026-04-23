@@ -82,7 +82,7 @@ When running helm template, or using --dry-run, lookup returns an empty object
   */}}
 {{- define "certbot.jobSpec" }}
 backoffLimit: 6
-activeDeadlineSeconds: 300
+activeDeadlineSeconds: 600
 parallelism: 1
 completions: 1
 template:
