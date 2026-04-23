@@ -82,7 +82,7 @@ When running helm template, or using --dry-run, lookup returns an empty object
   */}}
 {{- define "certbot.jobSpec" }}
 backoffLimit: 6
-activeDeadlineSeconds: 300
+activeDeadlineSeconds: 600
 parallelism: 1
 completions: 1
 template:
@@ -126,9 +126,8 @@ template:
             value: {{ .Values.certbot.certPerHost | quote }}
         resources:
           requests:
-            cpu: 50m
-          limits:
-            cpu: 250m
+            cpu: 100m
+            memory: 256Mi
         volumeMounts:
           - mountPath: /etc/letsencrypt
             name: certbot-config

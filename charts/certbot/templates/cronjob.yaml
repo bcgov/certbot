@@ -7,7 +7,7 @@ spec:
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 3
   successfulJobsHistoryLimit: 3
-  startingDeadlineSeconds: 60
+  startingDeadlineSeconds: 600
   jobTemplate:
     metadata:
       labels: {{ include "certbot.labels" . | nindent 8 }}

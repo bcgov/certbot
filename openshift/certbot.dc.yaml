@@ -67,6 +67,23 @@ objects:
           - update
           - patch
           - delete
+      - apiGroups:
+          - networking.k8s.io
+        resources:
+          - ingresses
+        verbs:
+          - list
+          - get
+      - apiGroups:
+          - ""
+        resources:
+          - secrets
+        verbs:
+          - list
+          - get
+          - create
+          - update
+          - patch
 
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
@@ -101,12 +118,12 @@ objects:
       concurrencyPolicy: Forbid
       failedJobsHistoryLimit: 3
       successfulJobsHistoryLimit: 3
-      startingDeadlineSeconds: 60
+      startingDeadlineSeconds: 600
       jobTemplate:
         metadata:
         spec:
           backoffLimit: 6
-          activeDeadlineSeconds: 300
+          activeDeadlineSeconds: 600
           parallelism: 1
           completions: 1
           template:
@@ -138,9 +155,8 @@ objects:
                       value: "${CERTBOT_CERT_PER_HOST}"
                   resources:
                     requests:
-                      cpu: 50m
-                    limits:
-                      cpu: 250m
+                      cpu: 100m
+                      memory: 256Mi
                   volumeMounts:
                     - mountPath: /etc/letsencrypt
                       name: certbot-config

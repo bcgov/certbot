@@ -1,10 +1,8 @@
 # Certbot [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Lifecycle:Stable](https://img.shields.io/badge/Lifecycle-Stable-97ca00)](https://github.com/bcgov/repomountie/blob/master/doc/lifecycle-badges.md)
 
-Automatically update TLS Certificates on OpenShift Routes
+Automatically update TLS certificates on OpenShift Routes and Ingresses
 
-_Update (August 2023) - Entrust Certificate Services has discontinued ACMEv1 protocol. Current users of BCDevOps Certbot will be unable to renew their certificates at this time if they are using OCIO Identity Management Services' Entrust Certificate Services._
-
-_Update (November 2023) - At this time, the underlying EFF Certbot project and Entrust Certificate Services both support the newer ACMEv2 protocol. However, BCDevOps Certbot currently only supports the older, deprecated, ACMEv1 protocol, and OCIO IMS has not enabled ACMEv2 protocol support at this time. Please consider contacting OCIO Identity Management Services to express your need for ACMEv2 and Certbot support._
+This container now uses a current Python and Certbot runtime with ACME v2-compatible defaults. Compatibility with a specific certificate authority still depends on that provider's ACME implementation and any approval process required by your organization.
 
 To learn more about the **Common Services** available visit the [Common Services Showcase](https://bcgov.github.io/common-service-showcase/) page.
 
@@ -29,14 +27,24 @@ To learn more about the **Common Services** available visit the [Common Services
 - Can utilize <https://letsencrypt.org/> or other ACME compliant Certificate Authority for issuing certificates
 - Leverages and extends <https://certbot.eff.org/> for managing (create/renew) certificates
 - Should only be executed on Openshift Container Platform
+- Uses a Python 3.12-based container image and a current Certbot release
 - Creates an OpenShift `CronJob` which will run on a regular schedule for renewing TLS certificates
   - The `CronJob` will manage all `Route` objects annotated with the label `certbot-managed=true`
-  - You have the option of a single certificate being issued/renewed for all the managed hosts/domains, or of an individual certificate being issued/renewed for each managed host/domain.
-- If a cert is created/renewed, patch the new certificate to the managed OpenShift routes
+    - The `CronJob` will manage all `Ingress` objects annotated with the label `certbot-managed=true` by updating the TLS `Secret` resources referenced from `.spec.tls`
+    - You have the option of a single certificate being issued/renewed for all managed hosts/domains, or of individual certificates being issued/renewed per managed host or ingress TLS secret, depending on configuration.
+- If a cert is created/renewed, patch the new certificate to the managed OpenShift routes and ingress TLS secrets
 
 ## Environment Variables
 
 The Certbot container image supports an array of environment variables to configure how it will behave. Certbot behavior can be modified by modifying which variables are defined. The following variables change the way how the internal Certbot application will behave.
+
+Managed ingress behavior:
+
+- Add the label `certbot-managed=true` to any `Ingress` that should be included.
+- Each `Ingress.spec.tls[*].secretName` is treated as a managed TLS target.
+- When `CERTBOT_CERT_PER_HOST=false`, one combined certificate is used for routes and ingress TLS secrets.
+- When `CERTBOT_CERT_PER_HOST=true`, routes receive one certificate per host and each ingress TLS secret receives one certificate covering the hosts listed in that TLS entry.
+- If a referenced ingress TLS secret does not already exist, Certbot creates it as a `kubernetes.io/tls` secret.
 
 | Environment Variable | Default Value | Notes |
 | --- | --- | --- |
@@ -65,10 +73,11 @@ The following provides you a quick way to get Certbot set up and running as an O
     oc project $NAMESPACE
     ```
 
-1. Ensure that the Routes you want Certbot to manage have been annotated with the label `certbot-managed=true`. You can list routes that meet this criteria with the following:
+1. Ensure that the Routes and Ingresses you want Certbot to manage have been annotated with the label `certbot-managed=true`. You can list managed resources with the following:
 
     ```sh
     oc get route -n $NAMESPACE -l certbot-managed=true -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+    oc get ingress -n $NAMESPACE -l certbot-managed=true -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
     ```
 
 1. Install Certbot to your project/namespace by processing `certbot.dc.yaml` to create the CronJob and supporting objects (ServiceAccount, RoleBinding, PVC, etc).
@@ -95,7 +104,8 @@ The following provides you a quick way to get Certbot set up and running as an O
     - For non-prod environments, you may set `CERTBOT_STAGING=true`, so you don't hit any service limits with LetsEncrypt.
     - By default, this template will use LetsEncrypt for certificate generation. If you are just testing, you may use Let's Encrypt testing endpoint `https://acme-staging-v02.api.letsencrypt.org/directory` to avoid being rate limited.
     - For your production applications, we strongly recommend **NOT** using LetsEncrypt certificates. Contact your ministry/department to determine best practices for production SSL/TLS certificate management.
-    - If you are using a certificate provider that gives you extra domains on top of what you have requested (like Entrust), you should make sure that the `CERTBOT_SUBSET` option is set to true. Otherwise certificate renewals will always fail because their extra domain will never be managed on our end and choke. If you require stringent domain validation, set `CERTBOT_SUBSET` to false explicitly.
+    - If you are using a certificate provider that gives you extra domains on top of what you have requested, make sure that the `CERTBOT_SUBSET` option is set to true. Otherwise certificate renewals can fail because the unmanaged extra domains will not pass validation. If you require stringent domain validation, set `CERTBOT_SUBSET` to false explicitly.
+    - The certbot service account must be able to read `Ingress` resources and get, create, update, and patch referenced TLS `Secret` resources.
 
     ```sh
     export CERTBOT_EMAIL=<some-valid@email.com>
@@ -151,9 +161,9 @@ Where Entrust does support Certbot, there are a few extra steps required to requ
 
 1. Make sure `CERTBOT_STAGING` is set to `false`.  The Entrust server does not have a staging mode
 
-1. If a Certbot job has previously on the same route using LetsEncrypt server, then you will need to delete the existing PVC.  This will remove old Let's Encrypt files and a new PVC will be created on the next step.
+1. If a Certbot job has previously managed the same route or ingress hosts using a different certificate authority, then you may need to delete the existing PVC. This removes prior Certbot account and certificate state so a clean issuance flow can start on the next run.
 
-1. Apply the deployment config and run the job manually or by cron trigger. The job logs will display it has failed to obtain the certificates and the route will remain unmodified.  This is normal because the certificate request still needs to be approved by your ministry first.
+1. Apply the deployment config and run the job manually or by cron trigger. The job logs may show that the certificate request is pending and the route or ingress TLS secret will remain unmodified until the request is approved by your ministry.
 
 1. In the `CERTBOT_EMAIL` inbox you should receive an email from `auto-notice@entrust.com` containing a `Tracking ID`.
 
@@ -169,7 +179,7 @@ Where Entrust does support Certbot, there are a few extra steps required to requ
 
 ## Tips
 
-1. If you are going to setup automatic cert renewals for the first time, backup "Certficate", "Private Key" and "CA Certificate" contents from your route.
+1. If you are setting up automatic certificate renewals for the first time, back up the existing route TLS material or ingress TLS secret before the first run.
 
 1. List your cron jobs
 
@@ -201,7 +211,7 @@ Where Entrust does support Certbot, there are a few extra steps required to requ
     oc process -n $NAMESPACE -f "https://raw.githubusercontent.com/BCDevOps/certbot/master/openshift/certbot.dc.yaml" -p CERTBOT_EMAIL=$EMAIL -p CERTBOT_SERVER=$CERTBOT_SERVER -p CERTBOT_STAGING=false -p CERTBOT_DEBUG=true -p CERTBOT_DELETE_ACME_ROUTES=false | oc apply -n $NAMESPACE -f -
     ```
 
-    _PS: Ensure that you manually delete the ACME Route and Service after you are done troubleshooting and redeploy without the DEBUG and DELETE_ACME_ROUTES options!_
+    _PS: Ensure that you manually delete the temporary ACME Route, Service, and NetworkPolicy after you are done troubleshooting and redeploy without the DEBUG and DELETE_ACME_ROUTES options._
 
 1. If you end up running the setup process multiple times, ensure that you have deleted all the duplicate copies of those cron jobs and only keep the latest one. Or to delete all the certbot jobs and start fresh you can use the below.
 
